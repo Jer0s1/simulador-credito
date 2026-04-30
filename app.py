@@ -96,7 +96,7 @@ if st.button("Calcular"):
         st.subheader("Tabla de amortizacion")
         tabla_formateada = tabla.style.format({
             "Cuota": "${:,.0f}",
-            "Interes": "${:,.0f}",
+            "Interes": "${:,.4f}",
             "Abono capital": "${:,.0f}",
             "Abono extraordinario": "${:,.0f}",
             "Cuota pactada": "${:,.0f}",
@@ -184,7 +184,7 @@ if st.button("Calcular"):
             y=tabla['Interes'],
             name='Interés',
             marker_color='#50A5FA',
-            hovertemplate='<b>Periodo %{x}</b><br>Interés: $%{y:,.0f}<extra></extra>'
+            hovertemplate='<b>Periodo %{x}</b><br>Interés: $%{y:,.4f}<extra></extra>'
         ))
 
         fig_composicion.add_trace(go.Bar(
