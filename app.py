@@ -11,13 +11,20 @@ with st.sidebar:
     st.header("Parametros del credito")
 
     capital = st.number_input(
-        "Valor del credito", min_value=1000.0, value=10000000.0, step=100000.0)
+        "Valor del credito",
+        min_value=1000.0,
+        value=10000000.0,
+        step=100000.0,
+        format="%0.0f"
+    )
+    st.caption(f"$ {capital:,.0f}".replace(",", "."))
     plazo = st.number_input("Plazo (numero de cuotas)",
                             min_value=1, value=24, step=1)
     periodicidad = st.selectbox("Periodicidad de pago", [
                                 "mensual", "bimestral", "trimestral", "semestral", "anual"])
-    tipo_tasa = st.selectbox(
-        "Tipo de tasa", ["EA", "NAMV", "NATV", "NASV", "PM", "PT"])
+    tipo_tasa_seleccionada = st.selectbox(
+        "Tipo de tasa", ["EA", "NAMV", "NATV", "NASV", "PM", "PT", "Efectivo mensual"])
+    tipo_tasa = "PM" if tipo_tasa_seleccionada == "Efectivo mensual" else tipo_tasa_seleccionada
     valor_tasa = st.number_input(
         "Valor de la tasa (%)", min_value=0.01, value=12.0, step=0.1) / 100
     sistema = st.selectbox("Sistema de amortizacion", [
@@ -87,7 +94,15 @@ if st.button("Calcular"):
         col3.metric("Periodos efectivos", resumen["Numero de periodos"])
 
         st.subheader("Tabla de amortizacion")
-        st.dataframe(tabla, use_container_width=True)
+        tabla_formateada = tabla.style.format({
+            "Cuota": "${:,.0f}",
+            "Interes": "${:,.0f}",
+            "Abono capital": "${:,.0f}",
+            "Abono extraordinario": "${:,.0f}",
+            "Cuota pactada": "${:,.0f}",
+            "Saldo final": "${:,.0f}"
+        })
+        st.dataframe(tabla_formateada, use_container_width=True)
 
         st.subheader("Evolucion del saldo en el tiempo")
 
