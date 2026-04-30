@@ -25,7 +25,7 @@ def generar_periodos_pactada(inicio, frecuencia, limite=500):
     return periodos
 
 
-def tabla_francesa(capital, tasa_periodica, periodos, fecha_inicio, periodicidad,
+def tabla_francesa(capital, tasa_periodica, periodos, fecha_desembolso, periodicidad,
                    abonos_extraordinarios=None, cuota_pactada=None,
                    cuota_pactada_inicio=1, cuota_pactada_frecuencia=1,
                    recalculo="plazo"):
@@ -33,24 +33,36 @@ def tabla_francesa(capital, tasa_periodica, periodos, fecha_inicio, periodicidad
     delta = DELTA_PERIODICIDAD[periodicidad]
     filas = []
     saldo = capital
-    fecha = fecha_inicio
+
+    # Periodo 0: desembolso
+    filas.append({
+        "n": 0,
+        "Fecha": fecha_desembolso,
+        "Saldo inicial": 0.0,
+        "Cuota": 0.0,
+        "Interes": 0.0,
+        "Abono capital": 0.0,
+        "Abono extraordinario": 0.0,
+        "Cuota pactada": 0.0,
+        "Saldo final": round(capital, 2),
+        "Tasa periodica": tasa_periodica,
+    })
 
     cuota_fija = cuota_francesa(capital, tasa_periodica, periodos)
     periodos_pactada = generar_periodos_pactada(cuota_pactada_inicio, cuota_pactada_frecuencia) if cuota_pactada else set()
+    fecha = fecha_desembolso + delta
 
     for periodo in range(1, periodos + 1):
         interes = round(saldo * tasa_periodica, 2)
         es_ultimo = (periodo == periodos)
 
         if es_ultimo:
-            # Ultima cuota: paga exactamente lo que falta
             abono_capital = round(saldo, 2)
             cuota_periodo = round(abono_capital + interes, 2)
             abono_extraordinario = 0.0
             abono_pactado = 0.0
             saldo_final = 0.0
         else:
-            # Cuota normal intacta
             cuota_periodo = round(cuota_fija, 2)
             abono_capital = round(cuota_periodo - interes, 2)
             if abono_capital < 0:
@@ -59,22 +71,19 @@ def tabla_francesa(capital, tasa_periodica, periodos, fecha_inicio, periodicidad
 
             saldo_tras_cuota = round(saldo - abono_capital, 2)
 
-            # Abono extraordinario: no supera saldo restante
             abono_extraordinario = round(min(abonos.get(periodo, 0), saldo_tras_cuota), 2)
             saldo_tras_extra = round(saldo_tras_cuota - abono_extraordinario, 2)
 
-            # Cuota pactada: no supera saldo restante tras abono extraordinario
             abono_pactado = round(min(cuota_pactada or 0, saldo_tras_extra) if periodo in periodos_pactada else 0, 2)
             saldo_final = round(saldo_tras_extra - abono_pactado, 2)
 
-            # Recalculo de cuota si aplica
             if recalculo == "cuota" and (abono_extraordinario + abono_pactado) > 0:
                 periodos_restantes = periodos - periodo
                 if periodos_restantes > 0 and saldo_final > 0:
                     cuota_fija = cuota_francesa(saldo_final, tasa_periodica, periodos_restantes)
 
         filas.append({
-            "Periodo": periodo,
+            "n": periodo,
             "Fecha": fecha,
             "Saldo inicial": round(saldo, 2),
             "Cuota": cuota_periodo,
@@ -89,13 +98,13 @@ def tabla_francesa(capital, tasa_periodica, periodos, fecha_inicio, periodicidad
         saldo = saldo_final
         fecha = fecha + delta
 
-        if saldo <= 0:
-            break
+    df = pd.DataFrame(filas)
+    df = df.set_index("n")
+    df.index.name = "n"
+    return df
 
-    return pd.DataFrame(filas)
 
-
-def tabla_abono_constante(capital, tasa_periodica, periodos, fecha_inicio, periodicidad,
+def tabla_abono_constante(capital, tasa_periodica, periodos, fecha_desembolso, periodicidad,
                           abonos_extraordinarios=None, cuota_pactada=None,
                           cuota_pactada_inicio=1, cuota_pactada_frecuencia=1):
     abonos = abonos_extraordinarios or {}
@@ -103,9 +112,22 @@ def tabla_abono_constante(capital, tasa_periodica, periodos, fecha_inicio, perio
     abono_capital_fijo = round(capital / periodos, 2)
     filas = []
     saldo = capital
-    fecha = fecha_inicio
+
+    filas.append({
+        "n": 0,
+        "Fecha": fecha_desembolso,
+        "Saldo inicial": 0.0,
+        "Cuota": 0.0,
+        "Interes": 0.0,
+        "Abono capital": 0.0,
+        "Abono extraordinario": 0.0,
+        "Cuota pactada": 0.0,
+        "Saldo final": round(capital, 2),
+        "Tasa periodica": tasa_periodica,
+    })
 
     periodos_pactada = generar_periodos_pactada(cuota_pactada_inicio, cuota_pactada_frecuencia) if cuota_pactada else set()
+    fecha = fecha_desembolso + delta
 
     for periodo in range(1, periodos + 1):
         interes = round(saldo * tasa_periodica, 2)
@@ -130,7 +152,7 @@ def tabla_abono_constante(capital, tasa_periodica, periodos, fecha_inicio, perio
             saldo_final = round(saldo_tras_extra - abono_pactado, 2)
 
         filas.append({
-            "Periodo": periodo,
+            "n": periodo,
             "Fecha": fecha,
             "Saldo inicial": round(saldo, 2),
             "Cuota": cuota,
@@ -145,7 +167,7 @@ def tabla_abono_constante(capital, tasa_periodica, periodos, fecha_inicio, perio
         saldo = saldo_final
         fecha = fecha + delta
 
-        if saldo <= 0:
-            break
-
-    return pd.DataFrame(filas)
+    df = pd.DataFrame(filas)
+    df = df.set_index("n")
+    df.index.name = "n"
+    return df

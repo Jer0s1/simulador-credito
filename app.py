@@ -14,7 +14,7 @@ with st.sidebar:
     tipo_tasa = st.selectbox("Tipo de tasa", ["EA", "NAMV", "NATV", "NASV", "PM", "PT"])
     valor_tasa = st.number_input("Valor de la tasa (%)", min_value=0.01, value=12.0, step=0.1) / 100
     sistema = st.selectbox("Sistema de amortizacion", ["frances", "abono_constante"])
-    fecha_inicio = st.date_input("Fecha primer pago", value=date.today())
+    fecha_desembolso = st.date_input("Fecha de desembolso", value=date.today())
     recalculo = st.radio("Si hay abonos, recalcular:", ["plazo", "cuota"])
 
     st.subheader("Cuota pactada (opcional)")
@@ -26,7 +26,7 @@ with st.sidebar:
         cuota_pactada = st.number_input("Monto cuota pactada", min_value=1.0, value=500000.0)
         cuota_pactada_inicio = st.number_input("Periodo de inicio", min_value=1, value=1, step=1)
         cuota_pactada_frecuencia = st.number_input("Frecuencia (cada cuantos periodos)", min_value=1, value=1, step=1)
-        st.caption(f"Se aplicara en los periodos: {cuota_pactada_inicio}, {cuota_pactada_inicio + cuota_pactada_frecuencia}, {cuota_pactada_inicio + 2*cuota_pactada_frecuencia}...")
+        st.caption(f"Se aplicara en los periodos: {int(cuota_pactada_inicio)}, {int(cuota_pactada_inicio + cuota_pactada_frecuencia)}, {int(cuota_pactada_inicio + 2*cuota_pactada_frecuencia)}...")
 
     st.subheader("Abonos extraordinarios")
     abonos_texto = st.text_area("Periodo:monto (uno por linea)\nEjemplo:\n6:500000\n12:1000000")
@@ -42,14 +42,14 @@ if abonos_texto:
 
 if st.button("Calcular"):
     try:
-        tabla, resumen, tasa_periodica, advertencias = ejecutar_simulacion(
+        tabla, resumen, tasa_periodica, desc_tasa, advertencias = ejecutar_simulacion(
             capital=capital,
             plazo=int(plazo),
             periodicidad=periodicidad,
             tipo_tasa=tipo_tasa,
             valor_tasa=valor_tasa,
             sistema=sistema,
-            fecha_inicio=fecha_inicio,
+            fecha_desembolso=fecha_desembolso,
             abonos_extraordinarios=abonos,
             cuota_pactada=cuota_pactada,
             cuota_pactada_inicio=int(cuota_pactada_inicio),
@@ -61,7 +61,7 @@ if st.button("Calcular"):
             st.warning(adv)
 
         st.subheader("Tasa periodica utilizada")
-        st.info(f"{tasa_periodica:.6%}")
+        st.info(desc_tasa)
 
         st.subheader("Resumen financiero")
         col1, col2, col3 = st.columns(3)
