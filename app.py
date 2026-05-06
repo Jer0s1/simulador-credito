@@ -22,9 +22,16 @@ with st.sidebar:
                             min_value=1, value=24, step=1)
     periodicidad = st.selectbox("Periodicidad de pago", [
                                 "mensual", "bimestral", "trimestral", "semestral", "anual"])
-    tipo_tasa_seleccionada = st.selectbox(
-        "Tipo de tasa", ["EA", "NAMV", "NATV", "NASV", "PM", "PT", "Efectivo mensual"])
-    tipo_tasa = "PM" if tipo_tasa_seleccionada == "Efectivo mensual" else tipo_tasa_seleccionada
+    opciones_tasa = {
+        "Efectiva anual (EA)": "EA",
+        "Nominal anual mes vencido (NAMV)": "NAMV",
+        "Nominal anual trimestre vencido (NATV)": "NATV",
+        "Nominal anual semestre vencido (NASV)": "NASV",
+        "Efectiva mensual (PM)": "PM",
+        "Efectiva trimestral (PT)": "PT",
+    }
+    tipo_tasa_seleccionada = st.selectbox("Tipo de tasa", list(opciones_tasa.keys()))
+    tipo_tasa = opciones_tasa[tipo_tasa_seleccionada]
     valor_tasa = st.number_input(
         "Valor de la tasa (%)", min_value=0.01, value=12.0, step=0.1) / 100
     sistema = st.selectbox("Sistema de amortizacion", [
@@ -48,17 +55,39 @@ with st.sidebar:
             f"Se aplicara en los periodos: {int(cuota_pactada_inicio)}, {int(cuota_pactada_inicio + cuota_pactada_frecuencia)}, {int(cuota_pactada_inicio + 2*cuota_pactada_frecuencia)}...")
 
     st.subheader("Abonos extraordinarios")
-    abonos_texto = st.text_area(
-        "Periodo:monto (uno por linea)\nEjemplo:\n6:500000\n12:1000000")
 
-abonos = {}
-if abonos_texto:
-    for linea in abonos_texto.strip().split("\n"):
-        try:
-            p, m = linea.split(":")
-            abonos[int(p.strip())] = float(m.strip())
-        except ValueError:
-            st.warning(f"Linea ignorada (formato invalido): {linea}")
+    if "abonos_extra" not in st.session_state:
+        st.session_state.abonos_extra = {}
+
+    col_p, col_m = st.columns(2)
+    with col_p:
+        abono_periodo = st.number_input(
+            "Periodo", min_value=1, value=1, step=1, key="abono_periodo_input")
+    with col_m:
+        abono_monto = st.number_input(
+            "Monto", min_value=1.0, value=500000.0, step=100000.0,
+            format="%0.0f", key="abono_monto_input")
+
+    if st.button("Agregar abono", use_container_width=True):
+        if int(abono_periodo) in st.session_state.abonos_extra:
+            st.error(f"Ya existe un abono extraordinario en el periodo {int(abono_periodo)}. Elimínalo primero si deseas cambiarlo.")
+        else:
+            st.session_state.abonos_extra[int(abono_periodo)] = float(abono_monto)
+            st.rerun()
+
+    if st.session_state.abonos_extra:
+        st.caption("Abonos agregados:")
+        for per in sorted(st.session_state.abonos_extra.keys()):
+            monto_val = st.session_state.abonos_extra[per]
+            col_info, col_del = st.columns([3, 1])
+            with col_info:
+                st.write(f"Periodo {per}: ${monto_val:,.0f}")
+            with col_del:
+                if st.button("✕", key=f"del_abono_{per}"):
+                    del st.session_state.abonos_extra[per]
+                    st.rerun()
+
+abonos = dict(st.session_state.get("abonos_extra", {}))
 
 if st.button("Calcular"):
     try:
