@@ -84,6 +84,9 @@ if 'capital' not in st.session_state:
     st.session_state.cuota_pactada = 500000.0
     st.session_state.cuota_pactada_inicio = 1
     st.session_state.cuota_pactada_frecuencia = 1
+    st.session_state.usar_abonos = False
+    st.session_state.abono_periodo = 6
+    st.session_state.abono_monto = 500000.0
 
 if st.session_state.vista == 'datos':
     st.title("Simulador de Crédito - Información del Crédito")
@@ -121,9 +124,19 @@ if st.session_state.vista == 'datos':
             st.session_state.recalculo = recalculo
 
         st.subheader("Abonos extraordinarios")
-        abonos_texto = st.text_area(
-            "Periodo:monto (uno por línea)\nEjemplo:\n6:500000\n12:1000000", value=st.session_state.abonos_texto)
-        st.session_state.abonos_texto = abonos_texto
+        usar_abonos = st.checkbox("Agregar abonos extraordinarios", value=st.session_state.usar_abonos)
+        st.session_state.usar_abonos = usar_abonos
+        abono_periodo = 6
+        abono_monto = 500000.0
+        if usar_abonos:
+            abono_periodo = st.number_input(
+                "Periodo del abono", min_value=1, value=st.session_state.abono_periodo, step=1)
+            st.session_state.abono_periodo = abono_periodo
+            abono_monto = st.number_input(
+                "Monto del abono", min_value=1.0, value=st.session_state.abono_monto, step=100000.0)
+            st.session_state.abono_monto = abono_monto
+            st.caption(
+                f"Monto del abono formateado: {formato_moneda(abono_monto, 0)}")
 
         st.subheader("Cuota pactada")
         usar_cuota_pactada = st.checkbox("Agregar cuota pactada periódica", value=st.session_state.usar_cuota_pactada)
@@ -150,14 +163,8 @@ if st.session_state.vista == 'datos':
     with col_left:
         if st.button("Ver Resultados", key="ver_resultados"):
             abonos = {}
-            if abonos_texto:
-                for linea in abonos_texto.strip().split("\n"):
-                    try:
-                        p, m = linea.split(":")
-                        abonos[int(p.strip())] = float(m.strip())
-                    except ValueError:
-                        st.warning(
-                            f"Línea ignorada (formato inválido): {linea}")
+            if usar_abonos:
+                abonos[abono_periodo] = abono_monto
 
             try:
                 tabla, resumen, tasa_periodica, desc_tasa, advertencias = ejecutar_simulacion(
