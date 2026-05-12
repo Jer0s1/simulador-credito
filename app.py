@@ -93,43 +93,56 @@ if st.session_state.vista == 'datos':
         col1, col2 = st.columns(2)
         with col1:
             capital = st.number_input(
-                "Valor del crédito", min_value=1000.0, value=10000000.0, step=100000.0)
+                "Valor del crédito", min_value=1000.0, value=st.session_state.capital, step=100000.0)
+            st.session_state.capital = capital
             st.caption(
                 f"Valor del crédito formateado: {formato_moneda(capital, 0)}")
             plazo = st.number_input(
-                "Plazo (número de cuotas)", min_value=1, value=24, step=1)
+                "Plazo (número de cuotas)", min_value=1, value=st.session_state.plazo, step=1)
+            st.session_state.plazo = plazo
             fecha_desembolso = st.date_input(
-                "Fecha inicial", value=date.today())
+                "Fecha inicial", value=st.session_state.fecha_desembolso)
+            st.session_state.fecha_desembolso = fecha_desembolso
             periodicidad = st.selectbox("Periodicidad de pago", [
-                                        "mensual", "bimestral", "trimestral", "semestral", "anual"])
+                                        "mensual", "bimestral", "trimestral", "semestral", "anual"], index=["mensual", "bimestral", "trimestral", "semestral", "anual"].index(st.session_state.periodicidad))
+            st.session_state.periodicidad = periodicidad
         with col2:
             tipo_tasa = st.selectbox(
-                "Tipo de tasa", ["EA", "NAMV", "NATV", "NASV", "PM", "PT"])
+                "Tipo de tasa", ["EA", "NAMV", "NATV", "NASV", "PM", "PT"], index=["EA", "NAMV", "NATV", "NASV", "PM", "PT"].index(st.session_state.tipo_tasa))
+            st.session_state.tipo_tasa = tipo_tasa
             valor_tasa = st.number_input(
-                "Valor de la tasa (%)", min_value=0.01, value=12.0, step=0.1) / 100
+                "Valor de la tasa (%)", min_value=0.01, value=st.session_state.valor_tasa_raw, step=0.1) / 100
+            st.session_state.valor_tasa_raw = valor_tasa * 100
             sistema = st.selectbox("Sistema de amortización", [
-                                   "frances", "abono_constante"])
+                                   "frances", "abono_constante"], index=["frances", "abono_constante"].index(st.session_state.sistema))
+            st.session_state.sistema = sistema
             recalculo = st.radio("Opciones de recálculo", [
-                                 "Mantener plazo", "Mantener cuota"])
+                                 "Mantener plazo", "Mantener cuota"], index=["Mantener plazo", "Mantener cuota"].index(st.session_state.recalculo))
+            st.session_state.recalculo = recalculo
 
         st.subheader("Abonos extraordinarios")
         abonos_texto = st.text_area(
-            "Periodo:monto (uno por línea)\nEjemplo:\n6:500000\n12:1000000")
+            "Periodo:monto (uno por línea)\nEjemplo:\n6:500000\n12:1000000", value=st.session_state.abonos_texto)
+        st.session_state.abonos_texto = abonos_texto
 
         st.subheader("Cuota pactada")
-        usar_cuota_pactada = st.checkbox("Agregar cuota pactada periódica")
+        usar_cuota_pactada = st.checkbox("Agregar cuota pactada periódica", value=st.session_state.usar_cuota_pactada)
+        st.session_state.usar_cuota_pactada = usar_cuota_pactada
         cuota_pactada = None
         cuota_pactada_inicio = 1
         cuota_pactada_frecuencia = 1
         if usar_cuota_pactada:
             cuota_pactada = st.number_input(
-                "Monto cuota pactada", min_value=1.0, value=500000.0)
+                "Monto cuota pactada", min_value=1.0, value=st.session_state.cuota_pactada)
+            st.session_state.cuota_pactada = cuota_pactada
             st.caption(
                 f"Monto pactado formateado: {formato_moneda(cuota_pactada, 0)}")
             cuota_pactada_inicio = st.number_input(
-                "Periodo de inicio", min_value=1, value=1, step=1)
+                "Periodo de inicio", min_value=1, value=st.session_state.cuota_pactada_inicio, step=1)
+            st.session_state.cuota_pactada_inicio = cuota_pactada_inicio
             cuota_pactada_frecuencia = st.number_input(
-                "Frecuencia (cada cuantos periodos)", min_value=1, value=1, step=1)
+                "Frecuencia (cada cuantos periodos)", min_value=1, value=st.session_state.cuota_pactada_frecuencia, step=1)
+            st.session_state.cuota_pactada_frecuencia = cuota_pactada_frecuencia
 
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -220,7 +233,7 @@ elif st.session_state.vista == 'graficas':
 
     col1, col2 = st.columns(2)
     with col1:
-        fig1 = px.line(tabla, x='Periodo', y='Saldo final',
+        fig1 = px.line(tabla, x='Fecha', y='Saldo final',
                        title='Evolución del Saldo')
         fig1.update_traces(line=dict(width=2.5), marker=dict(size=4))
         fig1.update_layout(plot_bgcolor='rgba(255,255,255,0.9)', paper_bgcolor='rgba(255,255,255,0)',
@@ -229,20 +242,11 @@ elif st.session_state.vista == 'graficas':
                            yaxis=dict(showgrid=True, gridwidth=0.3, gridcolor='rgba(0,0,0,0.08)'))
         st.plotly_chart(fig1, use_container_width=True)
 
-        fig3 = px.line(tabla, x='Periodo', y='Cuota',
-                       title='Comportamiento de Cuotas')
-        fig3.update_traces(line=dict(width=2.5), marker=dict(size=4))
-        fig3.update_layout(plot_bgcolor='rgba(255,255,255,0.9)', paper_bgcolor='rgba(255,255,255,0)',
-                           xaxis=dict(showgrid=True, gridwidth=0.3,
-                                      gridcolor='rgba(0,0,0,0.08)'),
-                           yaxis=dict(showgrid=True, gridwidth=0.3, gridcolor='rgba(0,0,0,0.08)'))
-        st.plotly_chart(fig3, use_container_width=True)
-
     with col2:
-        fig2 = px.bar(tabla, x='Periodo', y=[
-                      'Interes', 'Abono capital'], title='Intereses vs Capital')
+        fig2 = px.bar(tabla, x='Fecha', y=[
+                      'Interes', 'Abono capital', 'Abono extraordinario'], title='Intereses, Abono Capital y Abonos Extraordinarios')
         fig2.update_traces(marker_line_width=0.5)
-        fig2.update_layout(barmode='group', plot_bgcolor='rgba(255,255,255,0.9)', paper_bgcolor='rgba(255,255,255,0)',
+        fig2.update_layout(barmode='stack', plot_bgcolor='rgba(255,255,255,0.9)', paper_bgcolor='rgba(255,255,255,0)',
                            xaxis=dict(showgrid=True, gridwidth=0.3,
                                       gridcolor='rgba(0,0,0,0.08)'),
                            yaxis=dict(showgrid=True, gridwidth=0.3, gridcolor='rgba(0,0,0,0.08)'))

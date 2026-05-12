@@ -60,10 +60,11 @@ def tabla_francesa(capital, tasa_periodica, periodos, fecha_desembolso, periodic
         "n": 0,
         "Fecha": fecha_desembolso,
         "Cuota": 0.0,
+        "Cuota fija": 0.0,
+        "Cuota pactada": 0.0,
         "Interes": 0.0,
         "Abono capital": 0.0,
         "Abono extraordinario": 0.0,
-        "Cuota pactada": 0.0,
         "Saldo final": round(capital, 2),
         "Tasa periodica": tasa_periodica,
     })
@@ -92,10 +93,12 @@ def tabla_francesa(capital, tasa_periodica, periodos, fecha_desembolso, periodic
             break
 
         interes = round(saldo * tasa_periodica, 4)
-        cuota_sugerida = round(cuota_pactada, 2) if (cuota_pactada is not None and periodo in periodos_pactada) else round(cuota_fija, 2)
+        cuota_fija_valor = round(cuota_fija, 2)
+        cuota_pactada_valor = round(cuota_pactada, 2) if (cuota_pactada is not None and periodo in periodos_pactada) else 0.0
+        cuota_total = cuota_fija_valor + cuota_pactada_valor
 
         # Determinar si este periodo liquida el saldo.
-        pago_total = cuota_sugerida
+        pago_total = cuota_total
         cubre_interes = pago_total >= interes
         if not cubre_interes:
             # El simulador no hace capitalización de intereses; solo advierte y limita el pago a interés.
@@ -120,6 +123,8 @@ def tabla_francesa(capital, tasa_periodica, periodos, fecha_desembolso, periodic
             abono_capital = round(saldo, 2)
             pago_total = round(abono_capital + interes, 2)
             abono_extraordinario = 0.0
+            cuota_total = pago_total  # Ajustar para que cuadre
+            cuota_fija_valor = pago_total - cuota_pactada_valor if cuota_pactada_valor > 0 else pago_total
             saldo_final = 0.0
 
         # Si hay abonos y se quiere recalcular la cuota, recomputamos con el saldo remanente.
@@ -136,10 +141,11 @@ def tabla_francesa(capital, tasa_periodica, periodos, fecha_desembolso, periodic
             "n": periodo,
             "Fecha": fecha,
             "Cuota": pago_total,
+            "Cuota fija": cuota_fija_valor,
+            "Cuota pactada": cuota_pactada_valor,
             "Interes": interes,
             "Abono capital": abono_capital,
             "Abono extraordinario": abono_extraordinario,
-            "Cuota pactada": round(cuota_pactada, 2) if (cuota_pactada is not None and periodo in periodos_pactada) else 0.0,
             "Cubre intereses": bool(cubre_interes),
             "Saldo final": saldo_final,
             "Tasa periodica": tasa_periodica,
@@ -171,10 +177,11 @@ def tabla_abono_constante(capital, tasa_periodica, periodos, fecha_desembolso, p
         "n": 0,
         "Fecha": fecha_desembolso,
         "Cuota": 0.0,
+        "Cuota fija": 0.0,
+        "Cuota pactada": 0.0,
         "Interes": 0.0,
         "Abono capital": 0.0,
         "Abono extraordinario": 0.0,
-        "Cuota pactada": 0.0,
         "Saldo final": round(capital, 2),
         "Tasa periodica": tasa_periodica,
     })
@@ -189,43 +196,47 @@ def tabla_abono_constante(capital, tasa_periodica, periodos, fecha_desembolso, p
 
         if es_ultimo:
             abono_capital = round(saldo, 2)
-            cuota = round(abono_capital + interes, 2)
-            abono_extraordinario = 0.0
+            cuota_fija_valor = round(abono_capital + interes, 2)
             cuota_pactada_valor = 0.0
+            cuota_total = cuota_fija_valor
+            abono_extraordinario = 0.0
             saldo_final = 0.0
+            cubre_interes = True
         else:
-            abono_capital = round(min(abono_capital_fijo, saldo), 2)
-            cuota = round(abono_capital + interes, 2)
+            abono_capital_fijo_valor = round(min(abono_capital_fijo, saldo), 2)
+            cuota_fija_valor = round(abono_capital_fijo_valor + interes, 2)
 
-            saldo_tras_cuota = round(saldo - abono_capital, 2)
+            saldo_tras_cuota_fija = round(saldo - abono_capital_fijo_valor, 2)
+            abono_extraordinario_temp = round(
+                min(abonos.get(periodo, 0), saldo_tras_cuota_fija), 2)
+            saldo_tras_extra_temp = round(
+                saldo_tras_cuota_fija - abono_extraordinario_temp, 2)
 
-            abono_extraordinario = round(
-                min(abonos.get(periodo, 0), saldo_tras_cuota), 2)
-            saldo_tras_extra = round(
-                saldo_tras_cuota - abono_extraordinario, 2)
-
-            # La "cuota pactada" se trata como cuota (pago total) en los periodos seleccionados.
+            # La "cuota pactada" se suma a la cuota fija
             cuota_pactada_valor = round(cuota_pactada, 2) if (cuota_pactada is not None and periodo in periodos_pactada) else 0.0
-            if cuota_pactada_valor > 0:
-                cuota = cuota_pactada_valor
-                cubre_interes = cuota >= interes
-                if not cubre_interes:
-                    cuota = interes
-                abono_capital = round(min(max(cuota - interes, 0.0), saldo_tras_extra), 2)
-                saldo_final = round(saldo_tras_extra - abono_capital, 2)
-            else:
-                cubre_interes = True
-                saldo_final = round(saldo_tras_extra, 2)
+            cuota_total = cuota_fija_valor + cuota_pactada_valor
+
+            cubre_interes = cuota_total >= interes
+            if not cubre_interes:
+                cuota_total = interes
+                cuota_fija_valor = max(interes - cuota_pactada_valor, 0.0)
+
+            abono_capital = round(min(max(cuota_total - interes, 0.0), saldo_tras_extra_temp), 2)
+            saldo_tras_cuota = round(saldo_tras_extra_temp - abono_capital, 2)
+
+            abono_extraordinario = abono_extraordinario_temp
+            saldo_final = round(saldo_tras_cuota, 2)
 
         filas.append({
             "n": periodo,
             "Fecha": fecha,
-            "Cuota": cuota,
+            "Cuota": cuota_total,
+            "Cuota fija": cuota_fija_valor,
+            "Cuota pactada": cuota_pactada_valor,
             "Interes": interes,
             "Abono capital": abono_capital,
             "Abono extraordinario": abono_extraordinario,
-            "Cuota pactada": cuota_pactada_valor if not es_ultimo else 0.0,
-            "Cubre intereses": bool(cubre_interes) if not es_ultimo else True,
+            "Cubre intereses": cubre_interes,
             "Saldo final": saldo_final,
             "Tasa periodica": tasa_periodica,
         })
