@@ -20,20 +20,29 @@ def resumen_financiero(df):
     }
 
 
+def formato_moneda(valor, decimales=0):
+    texto = f"{valor:,.{decimales}f}"
+    texto = texto.replace(".", "_").replace(",", ".").replace("_", ",")
+    return f"${texto}"
+
+
 def ejecutar_simulacion(capital, plazo, periodicidad, tipo_tasa, valor_tasa,
                         sistema, fecha_desembolso, abonos_extraordinarios=None,
                         cuota_pactada=None, cuota_pactada_inicio=1,
                         cuota_pactada_frecuencia=1, recalculo="plazo"):
     advertencias = []
     tasa_periodica = convertir_tasa(valor_tasa, tipo_tasa, periodicidad)
-    desc_tasa = descripcion_conversion(valor_tasa, tipo_tasa, periodicidad, tasa_periodica)
+    desc_tasa = descripcion_conversion(
+        valor_tasa, tipo_tasa, periodicidad, tasa_periodica)
 
     # Validación de cuota pactada (si se interpreta como cuota/pago del periodo).
     if cuota_pactada is not None:
-        cuota_teorica = cuota_francesa(capital, tasa_periodica, plazo) if sistema == "frances" else None
+        cuota_teorica = cuota_francesa(
+            capital, tasa_periodica, plazo) if sistema == "frances" else None
 
         if sistema == "frances":
-            n_real, n_ceiled = plazo_implicito_frances(capital, tasa_periodica, cuota_pactada)
+            n_real, n_ceiled = plazo_implicito_frances(
+                capital, tasa_periodica, cuota_pactada)
             if n_ceiled is None:
                 advertencias.append(
                     "La cuota pactada no es financieramente viable: no cubre los intereses del primer periodo "
@@ -42,8 +51,8 @@ def ejecutar_simulacion(capital, plazo, periodicidad, tipo_tasa, valor_tasa,
             else:
                 if cuota_teorica is not None and abs(cuota_pactada - cuota_teorica) > 0.01:
                     advertencias.append(
-                        f"La cuota pactada (${cuota_pactada:,.0f}) no coincide con la cuota teórica "
-                        f"(${cuota_teorica:,.0f}) para plazo={plazo}. Plazo implícito aproximado: {n_ceiled} periodos."
+                        f"La cuota pactada ({formato_moneda(cuota_pactada)}) no coincide con la cuota teórica "
+                        f"({formato_moneda(cuota_teorica)}) para plazo={plazo}. Plazo implícito aproximado: {n_ceiled} periodos."
                     )
 
     if sistema == "frances":
